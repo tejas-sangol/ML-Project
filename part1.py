@@ -1,5 +1,5 @@
 from sklearn import svm
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier
 from sklearn.neural_network import MLPClassifier
 import skimage as ski
 from skimage import io,transform,feature,color,data
@@ -12,10 +12,11 @@ def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
 
 
 
+svm = svm.LinearSVC()               #Untrained SVM Classifier
+rf = RandomForestClassifier()       #Untrained Random Forest Classifier
+mlp = MLPClassifier();              #Untrained Neural network Classifier
+etc = ExtraTreesClassifier();       #Untrained ExtraTrees Classifier
 
-svm = svm.LinearSVC()  #Untrained SVM Classifier
-rf = RandomForestClassifier()
-mlp = MLPClassifier();
 
 
 postive_features =[]    # Will be filled with the HOG descriptors of the cropped images(128 x 128 pixels).
@@ -26,10 +27,11 @@ negative_features =[];  # Will be filled with hard negatives from the uncropped 
 # 1. io.imread() --> Loads the image as a 3D array from the file
 # 2. color.rgb2grey --> Normalizes the 3D coloured array to 2D greyscaled array necessary for HOG.
 # 3. features.hog --> Ruturns the HOG Descriptor for the 2D array
-for root,_,files in os.walk('./training_data/cropped/1'):
-	files = files[:120];
-	for file in files:
-		 postive_features.append(feature.hog(color.rgb2grey(io.imread(os.path.join(root,file)))));
+for i in range(1,4):
+	for root,_,files in os.walk('./training_data/cropped/'+str(i)):
+		files = files[:120]
+		for file in files:
+			 postive_features.append(feature.hog(color.rgb2grey(io.imread(os.path.join(root,file)))));
 
 
 
@@ -37,7 +39,7 @@ for root,_,files in os.walk('./training_data/cropped/1'):
 
 
 pos_of_hand = open('./training_data/bounding_boxes.csv').read().split('\n')[1:];
-for i in range(120):
+for i in range(400):
 	prop = pos_of_hand[i].split(',')
 	image = io.imread('./training_data/raw/' + prop[5] + '/' +prop[0]);
 
@@ -45,7 +47,7 @@ for i in range(120):
 
 	y,x,_= image.shape
 
-	initial_shift=10;
+	initial_shift=125;
 	for i in range(int(prop[1]),x-128,initial_shift):
 		for j in range(int(prop[2]),y-128,initial_shift):
 			if (i,j)==(int(prop[1]),int(prop[2])): continue;
@@ -59,20 +61,25 @@ for i in range(120):
 
 
 
-print len(negative_features)
+
 
 X = postive_features + negative_features;
+print len(postive_features),len(negative_features)
 Y = [1]*len(postive_features) + [0]*len(negative_features);
-svm.fit(X,Y);
-rf.fit(X,Y);
+# svm.fit(X,Y);
+# rf.fit(X,Y);
 mlp.fit(X,Y);
+# etc.fit(X,Y);
 a=0
 b=0;
 
-for root,_,files in os.walk('./training_data/cropped/1'):
-	files = files[120:];
+for root,_,files in os.walk('./training_data/cropped/5'):
+	files = files[::];
 	for file in files:
+		# ans = svm.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
+		# ans = rf.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
 		ans = mlp.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
+		# ans = etc.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
 		print ans;
 		if ans[0]==1: a+=1;
 		b+=1;
