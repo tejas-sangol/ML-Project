@@ -1,9 +1,12 @@
-from skimage import transform
+from skimage import io
 
+def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
+	return arr[start_coloumn:end_coloumn,start_row:end_row];
 
-def sliding_window(width,height,size_of_window=128,alter=30):
-	i=0;
-	j=0;
-	for i in range(0,width-size_of_window+1,alter):
-		for j in range(0,height-size_of_window+1,alter):
-			yield (i,j,i+size_of_window,j+size_of_window);
+pos_of_hand = open('./training_data/bounding_boxes.csv').read().split('\n')[1:];
+
+prop = pos_of_hand[0].split(',')
+
+image = io.imread('./training_data/raw/1/'+prop[0]);
+
+io.imsave('test.jpg',crop_image(image,int(prop[1])+90,int(prop[3])+40,int(prop[2]),int(prop[4])))

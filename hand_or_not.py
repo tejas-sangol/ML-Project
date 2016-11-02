@@ -4,7 +4,7 @@ from sklearn.neural_network import MLPClassifier
 import skimage as ski
 from skimage import io,transform,feature,color,data
 import numpy as np
-import Image
+# import Image
 import os
 
 def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
@@ -27,9 +27,9 @@ negative_features =[];  # Will be filled with hard negatives from the uncropped 
 # 1. io.imread() --> Loads the image as a 3D array from the file
 # 2. color.rgb2grey --> Normalizes the 3D coloured array to 2D greyscaled array necessary for HOG.
 # 3. features.hog --> Ruturns the HOG Descriptor for the 2D array
-for i in range(1,4):
+for i in range(1,5):
 	for root,_,files in os.walk('./training_data/cropped/'+str(i)):
-		files = files[:120]
+		files = files[::]
 		for file in files:
 			 postive_features.append(feature.hog(color.rgb2grey(io.imread(os.path.join(root,file)))));
 
@@ -39,15 +39,14 @@ for i in range(1,4):
 
 
 pos_of_hand = open('./training_data/bounding_boxes.csv').read().split('\n')[1:];
-for i in range(400):
+for i in range(300):
 	prop = pos_of_hand[i].split(',')
 	image = io.imread('./training_data/raw/' + prop[5] + '/' +prop[0]);
 
 
-
 	y,x,_= image.shape
 
-	initial_shift=125;
+	initial_shift=120 ;
 	for i in range(int(prop[1]),x-128,initial_shift):
 		for j in range(int(prop[2]),y-128,initial_shift):
 			if (i,j)==(int(prop[1]),int(prop[2])): continue;
@@ -59,8 +58,30 @@ for i in range(400):
 			if (i,j)==(int(prop[3]),int(prop[4])): continue;
 			negative_features.append(feature.hog(color.rgb2grey(crop_image(image,i-128,i,j-128,j))));
 
+positive_prediction=[]
+negative_prediction=[]
 
 
+# testing negative samples
+for i in range(200,1000):
+	prop = pos_of_hand[i].split(',')
+	image = io.imread('./training_data/raw/' + prop[5] + '/' +prop[0]);
+
+
+
+	y,x,_= image.shape
+
+	initial_shift=10;
+	for i in range(int(prop[1])+90,x-128,initial_shift):
+		for j in range(int(prop[2])+90,y-128,initial_shift):
+			if (i,j)==(int(prop[1]),int(prop[2])): continue;
+			negative_prediction.append(feature.hog(color.rgb2grey(crop_image(image,i,i+128,j,j+128))));
+
+
+	for i in range(min(int(prop[3])-150,x),128,-initial_shift):
+		for j in range(min(int(prop[4]) ,y),128,-initial_shift):
+			if (i,j)==(int(prop[3]),int(prop[4])): continue;
+			negative_prediction.append(feature.hog(color.rgb2grey(crop_image(image,i-128,i,j-128,j))));
 
 
 X = postive_features + negative_features;
@@ -70,17 +91,31 @@ Y = [1]*len(postive_features) + [0]*len(negative_features);
 # rf.fit(X,Y);
 mlp.fit(X,Y);
 # etc.fit(X,Y);
-a=0
-b=0;
 
+percentage=0;
 for root,_,files in os.walk('./training_data/cropped/5'):
 	files = files[::];
 	for file in files:
-		# ans = svm.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
+		positive_prediction.append(feature.hog(color.rgb2grey(io.imread(os.path.join(root,file)))));
 		# ans = rf.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
-		ans = mlp.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
+		# ans = mlp.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
 		# ans = etc.predict([feature.hog(color.rgb2grey(io.imread(os.path.join(root,file))))]);
-		print ans;
-		if ans[0]==1: a+=1;
-		b+=1;
-print float(a)/b;
+
+# negative_results = svm.predict(negative_prediction);
+# positive_results = svm.predict(positive_prediction);
+
+# positive_results = rf.predict(positive_prediction);
+# negative_results = rf.predict(negative_prediction);
+#
+positive_results = mlp.predict(positive_prediction);
+negative_results = mlp.predict(negative_prediction[:len(positive_prediction)]);
+#
+# positive_results = etc.predict(positive_prediction);
+# negative_results = etc.predict(negative_prediction);
+
+print len(positive_prediction),len(negative_prediction)
+print positive_results
+print negative_results
+
+percentage = float((sum(positive_results) + len(negative_results)-sum(negative_results)))/(len(positive_results)+len(negative_results));
+print percentage;
