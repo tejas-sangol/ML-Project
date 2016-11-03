@@ -12,8 +12,8 @@ def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
 
 
 
-svm = svm.SVC(kernel='rbf')         #Untrained SVM Classifier
-rf = RandomForestClassifier()       #Untrained Random Forest Classifier
+svm = svm.SVC(kernel='linear',C=1, probability=True);		        #Untrained SVM Classifier
+rf = RandomForestClassifier();      #Untrained Random Forest Classifier
 mlp = MLPClassifier();              #Untrained Neural network Classifier
 etc = ExtraTreesClassifier();       #Untrained ExtraTrees Classifier
 
@@ -38,7 +38,7 @@ for i in range(1,5):
 
 
 pos_of_hand = open('./training_data/bounding_boxes.csv').read().split('\n')[1:];
-for k in range(300):
+for k in range(700):
 	prop = pos_of_hand[k].split(',')
 	image = io.imread('./training_data/raw/' + prop[5] + '/' +prop[0]);
 
@@ -57,8 +57,9 @@ for k in range(300):
 			if (i,j)==(int(prop[3]),int(prop[4])): continue;
 			negative_features.append(feature.hog(color.rgb2grey(crop_image(image,i-128,i,j-128,j))));
 
+	if len(negative_features) >=2500: break;
 
-negative_features=negative_features[:800]
+
 
 X = postive_features + negative_features;
 print len(postive_features),len(negative_features)
@@ -70,12 +71,12 @@ svm.fit(X,Y);
 
 
 #Dump the trained classifiers into into the dump folder
-# with open('./dumps/mlp','wb') as d:
-	# import pickle
-	# pickle.dump(svm,d);
+# with open('./dumps/svm','wb') as d:
+# 	import pickle
+# 	pickle.dump(svm,d);
 	# pickle.dump(rf,d);
 	# pickle.dump(mlp,d);
-	# pickle.dump(svm,d);
+	# pickle.dump(etc,d);
 
 
 #TESTING---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ negative_prediction=[]
 
 
 # testing negative samples
-for k in range(501,1000):
+for k in range(701,1000):
 	prop = pos_of_hand[k].split(',')
 	image = io.imread('./training_data/raw/' + prop[5] + '/' +prop[0]);
 
@@ -118,21 +119,21 @@ for root,_,files in os.walk('./training_data/cropped/5'):
 		positive_prediction.append(feature.hog(color.rgb2grey(io.imread(os.path.join(root,file)))));
 
 
-negative_results = svm.predict(negative_prediction);
-positive_results = svm.predict(positive_prediction);
-
+positive_results = svm.predict_proba(positive_prediction);
+negative_results = svm.predict_proba(negative_prediction[:len(positive_prediction)]);
+#
 # positive_results = rf.predict(positive_prediction);
-# negative_results = rf.predict(negative_prediction);
-# #
+# negative_results = rf.predict(negative_prediction[:len(positive_prediction)]);
+#
 # positive_results = mlp.predict(positive_prediction);
 # negative_results = mlp.predict(negative_prediction[:len(positive_prediction)]);
 #
 # positive_results = etc.predict(positive_prediction);
-# negative_results = etc.predict(negative_prediction);
+# negative_results = etc.predict(negative_prediction[:len(positive_prediction)]);
 
 print len(positive_prediction),len(negative_prediction)
 print positive_results
 print negative_results
 
-percentage = float((sum(positive_results) + len(negative_results)-sum(negative_results)))/(len(positive_results)+len(negative_results));
-print percentage;
+# percentage = float((sum(positive_results) + len(negative_results)-sum(negative_results)))/(len(positive_results)+len(negative_results));
+# print percentage;
