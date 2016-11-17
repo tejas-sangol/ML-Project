@@ -1,5 +1,5 @@
 from sklearn import svm
-from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier
+from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier,AdaBoostClassifier
 from sklearn.neural_network import MLPClassifier
 import skimage as ski
 from skimage import io,transform,feature,color,data
@@ -14,11 +14,11 @@ def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
 
 
 
-svm = svm.SVC(kernel='linear',C=1000, probability=True,verbose=True);		        #Untrained SVM Classifier
-rf = RandomForestClassifier();      #Untrained Random Forest Classifier
+svm = svm.SVC(kernel='linear',C=10, probability=True);		        #Untrained SVM Classifier
+rf = RandomForestClassifier(n_estimators=100,random_state=100,n_jobs=-1,max_leaf_nodes=1000);      #Untrained Random Forest Classifier
 mlp = MLPClassifier();              #Untrained Neural network Classifier
 etc = ExtraTreesClassifier();       #Untrained ExtraTrees Classifier
-
+ada=AdaBoostClassifier(n_estimators=1000,random_state=100);
 
 
 postive_features =[]    # Will be filled with the HOG descriptors of the cropped images(128 x 128 pixels).
@@ -27,7 +27,7 @@ negative_features =[];  # Will be filled with hard negatives from the uncropped 
 
 
 for root,directories,_ in os.walk('dataset'):
-	for dir in directories:
+	for dir in directories[:]:
 		if dir[0]=='.' : continue;
 		with open('./dataset/'+dir+'/'+dir+'_loc.csv') as file_list:
 			file_list = file_list.read().split('\n')[1:];
@@ -47,8 +47,8 @@ for root,directories,_ in os.walk('dataset'):
 
 				y,x,_= image.shape
 
-				initial_shift=40;
-				shift =40;
+				initial_shift=30;
+				shift =30;
 				temp_negative_features=[];
 				for i in range(x1+initial_shift,x-128,shift):
 					for j in range(y1+initial_shift,y-128,shift):
@@ -59,7 +59,7 @@ for root,directories,_ in os.walk('dataset'):
 					for j in range(min(y2-initial_shift,y),128,-shift):
 						temp_negative_features.append(feature.hog(color.rgb2grey(crop_image(image,i-128,i,j-128,j))));
 
-				negative_features = negative_features + temp_negative_features[::max(1,int(len(temp_negative_features)/3))];
+				negative_features = negative_features + temp_negative_features;
 
 
 		print len(postive_features),len(negative_features),dir
@@ -68,18 +68,19 @@ X = postive_features + negative_features;
 Y = [1]*len(postive_features) + [0]*len(negative_features);
 
 
-svm.fit(X,Y);
-# rf.fit(X,Y);
+# svm.fit(X,Y);
+rf.fit(X,Y);
 # mlp.fit(X,Y);
 # etc.fit(X,Y);
+# ada.fit(X,Y);
 
 
 # Dump the trained classifiers into into the dump folder
-with open('./dumps/svm2','wb') as d:
-	pickle.dump(svm,d);
+# with open('./dumps/ada','wb') as d:
+# 	pickle.dump(ada,d);
 
-# with open('./dumps/rf','wb') as d:
-# 	pickle.dump(rf,d);
+with open('./dumps/rf','wb') as d:
+	pickle.dump(rf,d);
 
 
 # with open('./dumps/mlp','wb') as d:
