@@ -20,9 +20,9 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras import backend as K
 
-batch_size = 128
+batch_size = 100
 nb_classes = 10
-nb_epoch = 12
+nb_epoch = 2000
 
 # input image dimensions
 img_rows, img_cols = 32, 32
@@ -31,7 +31,7 @@ nb_filters = 32
 # size of pooling area for max pooling
 pool_size = (2, 2)
 # convolution kernel size
-kernel_size = (7, 7)
+kernel_size = (3, 3)
 
 # the data, shuffled and split between train and test sets
 X_train,X_test,y_train,y_test=[],[],[],[];
@@ -46,7 +46,8 @@ for root,directories,_ in os.walk('dataset'):
                 symbol = entry[entry.find('/')+1:entry.find('/')+3];
 
 
-                image =transform.resize(io.imread('./dataset/'+ entry.split(',')[0]),(100,100));
+                image =io.imread('./dataset/'+ entry.split(',')[0]);
+                # image = transform.resize(image,(200,200));
                 if int(symbol[1])>=8:
                     X_test.append(image);
                     y_test.append(symbol[1]);
@@ -58,46 +59,66 @@ X_train = np.array(X_train);
 X_test = np.array(X_test);
 y_train = np.array(y_train);
 y_test = np.array(y_test);
-main = (X_train,X_test,y_train,y_test);
-import pickle;
-with open('cnn_data','wb') as data:
-    pickle.dump(main,data)
-# X_train = X_train.astype('float32')
-# X_test = X_test.astype('float32')
-# X_train /= 255
-# X_test /= 255
-# print('X_train shape:', X_train.shape)
-# print(X_train.shape[0], 'train samples')
-# print(X_test.shape[0], 'test samples')
-#
-# # convert class vectors to binary class matrices
-# Y_train = np_utils.to_categorical(y_train, nb_classes)
-# Y_test = np_utils.to_categorical(y_test, nb_classes)
-#
-# model = Sequential()
-#
-# model.add(Convolution2D(nb_filters, kernel_size[0], kernel_size[1],
-#                         border_mode='valid',
-#                         input_shape=(100,100,3)))
+
+# import pickle;
+# with open('cnn_data','wb') as data:
+#     pickle.dump(main,data)
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train /= 255
+X_test /= 255
+
+
+# convert class vectors to binary class matrices
+Y_train = np_utils.to_categorical(y_train, nb_classes)
+Y_test = np_utils.to_categorical(y_test, nb_classes)
+
+model = Sequential()
+
+model.add(Convolution2D(5, 2, 2, input_shape=(240,320,3)))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(4, 4)))
+
+model.add(Convolution2D(5, 2, 2))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(4, 4)))
+
+# model.add(Convolution2D(5, 3, 3))
 # model.add(Activation('relu'))
-# model.add(Convolution2D(nb_filters, kernel_size[0], kernel_size[1]))
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+
+
+# model.add(Convolution2D(5, 3, 3))
 # model.add(Activation('relu'))
-# model.add(MaxPooling2D(pool_size=pool_size))
-# model.add(Dropout(0.25))
-#
-# model.add(Flatten())
-# model.add(Dense(128))
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+
+
+
+# model.add(Convolution2D(64, 3, 3))
 # model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(nb_classes))
-# model.add(Activation('softmax'))
-#
-# model.compile(loss='categorical_crossentropy',
-#               optimizer='sgd',
-#               metrics=['accuracy'])
-#
-# model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-#           verbose=1, validation_data=(X_test, Y_test))
-# score = model.evaluate(X_test, Y_test, verbose=0)
-# print('Test score:', score[0])
-# print('Test accuracy:', score[1])
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+
+# model.add(Convolution2D(64, 3, 3))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Flatten())  # this converts our 3D feature maps to 1D feature vectors
+model.add(Dense(400))
+model.add(Activation('relu'))
+model.add(Dense(1000))
+model.add(Activation('relu'))
+model.add(Dropout(0.25))
+model.add(Dense(100))
+model.add(Activation('relu'))
+model.add(Dense(10))
+model.add(Activation('softmax'))
+
+model.compile(loss='categorical_crossentropy',
+              optimizer='sgd',
+              metrics=['accuracy'])
+
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+          verbose=1, validation_data=(X_test, Y_test))
+score = model.evaluate(X_test, Y_test, verbose=1)
+print('Test score:', score[0])
+print('Test accuracy:', score[1])

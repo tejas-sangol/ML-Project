@@ -25,10 +25,9 @@ def run(arg):
 	#upscaled images
 	upscale_pyramid = []
 	im = image
-	for j in range(0,5):
-		im = pyramid_expand(im,upscale = 1.1)
+	for j in range(0,7):
+		im = pyramid_expand(im,upscale = 1.05)
 		upscale_pyramid.append(im)
-
 
 	shift=5;
 	a = 1
@@ -79,10 +78,10 @@ def run(arg):
 	# pred_max = max(prediction);
 	# pred_index = [i for i in range(len(prediction)) if prediction[i]==pred_max ][0] + 1;
 
-	print dir+'/'+symbol,pred,actual,symbol[0]
+	print dir+'/'+symbol,pred,actual
 	sys.stdout.flush();
 
-p=Pool(4);
+p=Pool();
 
 args=[];
 for root,directories,_ in os.walk('dataset'):
@@ -94,7 +93,7 @@ for root,directories,_ in os.walk('dataset'):
 			for entry in file_list:
 				if len(entry)==0:continue;
 				symbol = entry[entry.find('/')+1:entry.find('/')+3];
-				if int(symbol[1])<8: continue;
+
 				args.append((symbol,dir,entry));
 p.map(run,args);
 # run(('A8', 'user_10', 'user_10/A8.jpg,195,61,305,171'));
