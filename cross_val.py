@@ -31,6 +31,7 @@ def get_positive_images(l):
             img=io.imread('./dataset/'+im)
             img=color.rgb2grey(img)
             img=crop_image(img,int(x1),int(y1),int(x2),int(y2))
+            img=transform.resize(img,(img_height,img_width))
             pos[i].append(img)
             # io.imsave('./sample/pos/'+im,img)
             print im
@@ -59,37 +60,62 @@ def get_negative_images(l):
                     p=IOU([x,y,size],[x1,y1,size])
                     if(p>0.5):continue;
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
+                    cr_img=transform.resize(cr_img,(img_height,img_width))
                     neg[i].append(cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
                     c+=1
             print im,c
 
+svm = svm.SVC(kernel='linear',C=10,probability=True);		        #Untrained SVM Classifier
+
+
 def train(l):
+    postive_features=[]
+    negative_features=[]
+    for i in l:
+        for j in pos[i]:
+			postive_features.append(feature.hog(j));
+        for k in neg[i]:
+            negative_features.append(feature.hog(k));
 
-
-
-
+    X = postive_features + negative_features;
+    Y = [1]*len(postive_features) + [0]*len(negative_features);
+    svm.fit(X,Y);
 
 def test(l):
+    postive_features=[]
+    negative_features=[]
+    for i in l:
+        for j in pos[i]:
+			postive_features.append(feature.hog(j));
+        for k in neg[i]:
+            negative_features.append(feature.hog(k));
 
+    X = postive_features + negative_features;
+    Y = [1]*len(postive_features) + [0]*len(negative_features);
+    return svm.score(X,Y)
 
 
 
 l=l1+l2+l3+l4
+#l=["user_3","user_4"]
 get_positive_images(l)
 get_negative_images(l)
 
-train(l2+l3+l4)
-s1=test(l1)
+#train(["user_3"])
+#print test(["user_4"])
 
-train(l1+l3+l4)
-s2=test(l2)
+ train(l2+l3+l4)
+ s1=test(l1)
 
-train(l1+l2+l4)
-s3=test(l3)
+ train(l1+l3+l4)
+ s2=test(l2)
 
-train(l1+l2+l3)
-s4=test(l4)
+ train(l1+l2+l4)
+ s3=test(l3)
 
-print s1,s2,s3,s4,float(s1+s2+s3+s4)/4.0
+ train(l1+l2+l3)
+ s4=test(l4)
+
+ print s1,s2,s3,s4,float(s1+s2+s3+s4)/4.0
