@@ -32,7 +32,7 @@ def get_positive_images(l):
             img=color.rgb2grey(img)
             img=crop_image(img,int(x1),int(y1),int(x2),int(y2))
             pos[i].append(img)
-            io.imsave('./sample/pos/'+im,img)
+            # io.imsave('./sample/pos/'+im,img)
             print im
 
 def IOU(predicted,actual):
@@ -60,22 +60,36 @@ def get_negative_images(l):
                     if(p>0.5):continue;
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
                     neg[i].append(cr_img)
-                    io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
+                    # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
                     c+=1
             print im,c
 
-# def train(l):
+def train(l):
 
 
 
 
 
-# def test(l):
+def test(l):
 
 
 
 
 l=l1+l2+l3+l4
-# l=['user_3']
+get_positive_images(l)
 get_negative_images(l)
+
+train(l2+l3+l4)
+s1=test(l1)
+
+train(l1+l3+l4)
+s2=test(l2)
+
+train(l1+l2+l4)
+s3=test(l3)
+
+train(l1+l2+l3)
+s4=test(l4)
+
+print s1,s2,s3,s4,float(s1+s2+s3+s4)/4.0
