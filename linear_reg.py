@@ -9,12 +9,14 @@ l2=['user_7','user_9','user_10','user_11']
 l3=['user_12','user_13','user_14','user_15']
 l4=['user_16','user_17','user_18','user_19']
 
-reg_X={}
-reg_Y={}
+reg_X=[[] for _ in xrange(20)]
+reg_Y=[[] for _ in xrange(20)]
 
 img_height=240
 img_width=320
-img_size=80
+# img_size=80
+new_img_height=48
+new_img_width=64
 
 def crop_image(arr,x1,y1,x2,y2):
     return arr[y1:y2,x1:x2];
@@ -26,13 +28,16 @@ def IOU(predicted,actual):
 	unionArea = actual[2]*actual[2] + predicted[2]*predicted[2] - intersectionArea
 	return abs(float(intersectionArea)/unionArea)
 
+def get_index(s):
+	return int(s.split('_')[1])
+
 def get_images(l):
     for i in l:
     # i=l
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
-        reg_X[i]=[]
-        reg_Y[i]=[]
+        # reg_X[i]=[]
+        # reg_Y[i]=[]
         for j in bounding_boxes:
             c=0
             im,x1,y1,x2,y2=j.split(',')
@@ -40,52 +45,68 @@ def get_images(l):
             img=io.imread('./dataset/'+im)
             img=color.rgb2grey(img)
             size=x2-x1  #Assuming bounding box is a square
-            for y in xrange(0,img_height-size,100):
-                for x in xrange(0,img_width-size,100):
+            for y in xrange(0,img_height-size,20):
+                for x in xrange(0,img_width-size,20):
                     p=IOU([x,y,size],[x1,y1,size])
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
-                    cr_img=transform.resize(cr_img,(img_height,img_width))
-                    # feat=feature.hog(cr_img)    	            
-                    reg_X[i].append(feature.hog(cr_img))
-                    reg_Y[i].append(p)
+                    cr_img=transform.resize(cr_img,(new_img_height,new_img_width))
+                    # feat=feature.hog(cr_img)  
+                    # print cr_img.shape, feature.hog(cr_img) 	            
+                    reg_X[get_index(i)].append(feature.hog(cr_img,cells_per_block=(2,2)))
+                    reg_Y[get_index(i)].append(p)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
                     c+=1
             print im,c
 
-lreg = linear_model.LinearRegression(n_jobs=-1)		        #Untrained SVM Classifier
+# lreg = linear_model.Ridge(alpha=0.5)		       
+lreg = linear_model.BayesianRidge()		       
+# lreg = linear_model.LinearRegression(n_jobs=-1)		       
 
 
-# def train(l):
-#     X=[]
-#     Y=[]
-#     for i in l:
-#         for j in xrange(len(reg_Y[i])):
-#             X.append(feature.hog(reg_X[i][j]))
-#             Y.append(reg_Y[i][j])
-#     lreg.fit(X,Y)
+def train(l):
+    X=[]
+    Y=[]
+    for i in l:
+    	for j in xrange(len(reg_X[(get_index(i))])):
+        	X.append(reg_X[get_index(i)][j])
+        	Y.append(reg_Y[get_index(i)][j])
+    lreg.fit(X,Y)
 
-# def test(l):
-#     X=[]
-#     Y=[]
-#     for i in l:
-#         for j in xrange(len(reg_Y[i])):
-#             X.append(feature.hog(reg_X[i][j]))
-#             Y.append(reg_Y[i][j])
-#     return lreg.score(X,Y)
 
+def test(l):
+    X=[]
+    Y=[]
+    for i in l:
+    	for j in xrange(len(reg_X[(get_index(i))])):
+        	X.append(reg_X[get_index(i)][j])
+        	Y.append(reg_Y[get_index(i)][j])
+    return lreg.score(X,Y)
+
+get_images(l1+l2+l3+l4)
+train(['user_3','user_4','user_5','user_7','user_9','user_10','user_12','user_13','user_14','user_16','user_17','user_18'])
+print test(['user_6','user_11','user_15','user_19'])
+
+# get_images(l1+l2)
+# train(['user_3','user_4','user_5','user_7','user_9','user_10'])
+# print test(['user_6','user_11'])
 
 
 # l=l1+l2+l3+l4
 # l=["user_3","user_4"]
 # l=l1
-get_images(["user_3","user_4"])
-print len(reg_X["user_3"])
-print len(reg_Y["user_3"])
-print len(reg_X["user_4"])
-print len(reg_Y["user_4"])
-lreg.fit(reg_X["user_3"],reg_Y["user_3"])
-print lreg.score(reg_X["user_4"],reg_Y["user_4"])
+# get_images(["user_3","user_4","user_5","user_6"])
+# print len(reg_X[get_index("user_3")])
+# print len(reg_Y[get_index("user_3")])
+# print len(reg_X[get_index("user_4")])
+# print len(reg_Y[get_index("user_4")])
+# print len(reg_Y[get_index("user_5")])
+# print len(reg_Y[get_index("user_5")])
+# print len(reg_Y[get_index("user_6")])
+# print len(reg_Y[get_index("user_6")])
+
+# lreg.fit(reg_X[get_index("user_3")] + reg_X[get_index("user_4")] + reg_X[get_index("user_5")] ,reg_Y[get_index("user_3")] + reg_Y[get_index("user_4")] + reg_Y[get_index("user_5")] )
+# print lreg.score(reg_X[get_index("user_6")],reg_Y[get_index("user_6")])
 # p=Pool(4)
 # p.map(get_images,l)
 
