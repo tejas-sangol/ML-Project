@@ -1,11 +1,13 @@
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import train_test_split
 import skimage as ski
 from skimage import io,transform,feature,color,data
 import numpy as np
 import pickle;
 from multiprocessing import Pool;
+import time
 # from sliding_window import sliding_window
 import os
 
@@ -24,18 +26,19 @@ def IOU(predicted,actual):
 
 
 svm = svm.SVC(kernel='linear',C=10, probability=True);		        #Untrained SVM Classifier
-rf = RandomForestClassifier();      #Untrained Random Forest Classifier
+rf = RandomForestClassifier(n_estimators = 40,
+							random_state = 0,
+							n_jobs = -1,
+							verbose = 5);      #Untrained Random Forest Classifier
 mlp = MLPClassifier();              #Untrained Neural network Classifier
 etc = ExtraTreesClassifier();       #Untrained ExtraTrees Classifier
 
 
-
-X=np.memmap('train.map',mode='w+',shape=(8000,15876),dtype='int64');
-Y=np.memmap('test.map',mode='w+',shape=(8000),dtype='int64');
+X,Y=[],[];
 
 
 for root,directories,_ in os.walk('dataset'):
-	for dir in directories[:2]:
+	for dir in directories[:]:
 		if dir[0]=='.' : continue;
 		with open('./dataset/'+dir+'/'+dir+'_loc.csv') as file_list:
 			file_list = file_list.read().split('\n')[1:];
@@ -46,35 +49,45 @@ for root,directories,_ in os.walk('dataset'):
 				cordinates = map(int,entry.split(',')[1:]);
 				x1,y1,x2,y2 = cordinates[0],cordinates[1],cordinates[2],cordinates[3]
 
-				# if int(symbol[1])>=8: continue;
+				if int(symbol[1])>=8: continue;
 				image = io.imread('./dataset/'+ entry.split(',')[0]);
-				
+
 				shift=40;
 				i=0;
 				height,width,_=image.shape
 				for x in xrange(0,width-128,shift):
 					for y in xrange(0,height-128,shift):
 						percentage_hand = IOU([x,y,128],[x1,y1,x2-x1]);
-						X[i] = feature.hog(color.rgb2grey(crop_image(image,x,x+128,y,y+128)));
+
+						# time.sleep(0.1)
 						i+=1;
-						if percentage_hand >=0.7:
+						if percentage_hand >=0.9:
+							X.append(feature.hog(color.rgb2grey(crop_image(image,x,x+128,y,y+128)),cells_per_block=(2,2)));
 							Y+=[1];
-						else: 
+						elif percentage_hand<0.5:
+							X.append(feature.hog(color.rgb2grey(crop_image(image,x,x+128,y,y+128)),cells_per_block=(2,2)));
 							Y+=[0];
-				print entry.split(',')[0]
-			print len(X);
-svm.fit(X,Y);
-# rf.fit(X,Y);
+				print len(X);
+				# time.sleep(0.1)
+
+# print np.array(X).shape
+# svm.fit(X,Y);
+
+train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size = 0.2, random_state = 0)
+
+rf.fit(train_x, train_y)
+print rf.score(test_x, test_y);
+
 # mlp.fit(X,Y);
 # etc.fit(X,Y);
 
 
 # Dump the trained classifiers into into the dump folder
-with open('./dumps/svm','wb') as d:
-	pickle.dump(svm,d);
+# with open('./dumps/svm','wb') as d:
+# 	pickle.dump(svm,d);
 
-# with open('./dumps/rf','wb') as d:
-# 	pickle.dump(rf,d);
+with open('./dumps/rf','wb') as d:
+	pickle.dump(rf,d);
 
 
 # with open('./dumps/mlp','wb') as d:
