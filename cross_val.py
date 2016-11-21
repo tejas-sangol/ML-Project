@@ -10,8 +10,12 @@ l2=['user_7','user_9','user_10','user_11']
 l3=['user_12','user_13','user_14','user_15']
 l4=['user_16','user_17','user_18','user_19']
 
-pos={}
-neg={}
+pos=[[]]*100;
+neg=[[]]*100;
+
+def get_position(string):
+    return int(string.split('_')[1]);
+
 
 img_height=240
 img_width=320
@@ -25,14 +29,15 @@ def get_positive_images(l):
     for i in l:
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
-        pos[i]=[]
+        position = get_position(i);
+        pos[position]=[]
         for j in bounding_boxes:
             im,x1,y1,x2,y2=j.split(',')
             img=io.imread('./dataset/'+im)
             img=color.rgb2grey(img)
             img=crop_image(img,int(x1),int(y1),int(x2),int(y2))
             img=transform.resize(img,(img_height,img_width))
-            pos[i].append(img)
+            pos[position].append(img)
             # io.imsave('./sample/pos/'+im,img)
             print im
 
@@ -47,7 +52,8 @@ def get_negative_images(l):
     for i in l:
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
-        neg[i]=[]
+        position = get_position(i);
+        neg[position]=[]
         c=0
         for j in bounding_boxes:
             im,x1,y1,x2,y2=j.split(',')
@@ -61,7 +67,7 @@ def get_negative_images(l):
                     if(p>0.5):continue;
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
                     cr_img=transform.resize(cr_img,(img_height,img_width))
-                    neg[i].append(cr_img)
+                    neg[position].append(cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
                     c+=1
@@ -74,9 +80,10 @@ def train(l):
     postive_features=[]
     negative_features=[]
     for i in l:
-        for j in pos[i]:
+        position = get_position(i);
+        for j in pos[position]:
 			postive_features.append(feature.hog(j));
-        for k in neg[i]:
+        for k in neg[position]:
             negative_features.append(feature.hog(k));
 
     X = postive_features + negative_features;
@@ -87,9 +94,10 @@ def test(l):
     postive_features=[]
     negative_features=[]
     for i in l:
-        for j in pos[i]:
+        position = get_position(i);
+        for j in pos[position]:
 			postive_features.append(feature.hog(j));
-        for k in neg[i]:
+        for k in neg[position]:
             negative_features.append(feature.hog(k));
 
     X = postive_features + negative_features;
@@ -99,23 +107,23 @@ def test(l):
 
 
 l=l1+l2+l3+l4
-#l=["user_3","user_4"]
+l=["user_3","user_4"]
 get_positive_images(l)
 get_negative_images(l)
 
-#train(["user_3"])
-#print test(["user_4"])
+train(["user_3"])
+print test(["user_4"])
 
- train(l2+l3+l4)
- s1=test(l1)
-
- train(l1+l3+l4)
- s2=test(l2)
-
- train(l1+l2+l4)
- s3=test(l3)
-
- train(l1+l2+l3)
- s4=test(l4)
-
- print s1,s2,s3,s4,float(s1+s2+s3+s4)/4.0
+# train(l2+l3+l4)
+# s1=test(l1)
+#
+# train(l1+l3+l4)
+# s2=test(l2)
+#
+# train(l1+l2+l4)
+# s3=test(l3)
+#
+# train(l1+l2+l3)
+# s4=test(l4)
+#
+# print s1,s2,s3,s4,float(s1+s2+s3+s4)/4.0

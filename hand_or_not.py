@@ -12,22 +12,30 @@ import os
 def crop_image(arr,start_row,end_row,start_coloumn,end_coloumn):
 	return arr[start_coloumn:end_coloumn,start_row:end_row];
 
+def IOU(predicted,actual):
+	cord1 = [max(actual[0],predicted[0]),max(actual[1],predicted[1])]
+	cord2 = [min(actual[0]+actual[2],predicted[0]+predicted[2]),min(actual[1]+actual[2],predicted[1]+predicted[2])]
+
+	intersectionArea = (cord2[0]-cord1[0])*(cord2[1]-cord1[1])
+	unionArea = actual[2]*actual[2] + predicted[2]*predicted[2] - intersectionArea
+
+	return float(intersectionArea)/unionArea
 
 
-svm = svm.SVC(kernel='linear',C=1000, probability=True,verbose=True);		        #Untrained SVM Classifier
+
+svm = svm.SVC(kernel='linear',C=10, probability=True);		        #Untrained SVM Classifier
 rf = RandomForestClassifier();      #Untrained Random Forest Classifier
 mlp = MLPClassifier();              #Untrained Neural network Classifier
 etc = ExtraTreesClassifier();       #Untrained ExtraTrees Classifier
 
 
 
-postive_features =[]    # Will be filled with the HOG descriptors of the cropped images(128 x 128 pixels).
-negative_features =[];  # Will be filled with hard negatives from the uncropped images.
-
+X=np.memmap('train.map',mode='w+',shape=(8000,15876),dtype='int64');
+Y=np.memmap('test.map',mode='w+',shape=(8000),dtype='int64');
 
 
 for root,directories,_ in os.walk('dataset'):
-	for dir in directories:
+	for dir in directories[:2]:
 		if dir[0]=='.' : continue;
 		with open('./dataset/'+dir+'/'+dir+'_loc.csv') as file_list:
 			file_list = file_list.read().split('\n')[1:];
@@ -38,36 +46,23 @@ for root,directories,_ in os.walk('dataset'):
 				cordinates = map(int,entry.split(',')[1:]);
 				x1,y1,x2,y2 = cordinates[0],cordinates[1],cordinates[2],cordinates[3]
 
-				if int(symbol[1])>=8: continue;
+				# if int(symbol[1])>=8: continue;
 				image = io.imread('./dataset/'+ entry.split(',')[0]);
-
-				cropped_image = transform.resize(crop_image(image,x1,x2,y1,y2),(128,128));
-
-				postive_features.append(feature.hog(color.rgb2grey(cropped_image)));
-
-				y,x,_= image.shape
-
-				initial_shift=40;
-				shift =40;
-				temp_negative_features=[];
-				for i in range(x1+initial_shift,x-128,shift):
-					for j in range(y1+initial_shift,y-128,shift):
-						temp_negative_features.append(feature.hog(color.rgb2grey(crop_image(image,i,i+128,j,j+128))));
-
-
-				for i in range(min(x2-initial_shift,x),128,-shift):
-					for j in range(min(y2-initial_shift,y),128,-shift):
-						temp_negative_features.append(feature.hog(color.rgb2grey(crop_image(image,i-128,i,j-128,j))));
-
-				negative_features = negative_features + temp_negative_features[::max(1,int(len(temp_negative_features)/3))];
-
-
-		print len(postive_features),len(negative_features),dir
-
-X = postive_features + negative_features;
-Y = [1]*len(postive_features) + [0]*len(negative_features);
-
-
+				
+				shift=40;
+				i=0;
+				height,width,_=image.shape
+				for x in xrange(0,width-128,shift):
+					for y in xrange(0,height-128,shift):
+						percentage_hand = IOU([x,y,128],[x1,y1,x2-x1]);
+						X[i] = feature.hog(color.rgb2grey(crop_image(image,x,x+128,y,y+128)));
+						i+=1;
+						if percentage_hand >=0.7:
+							Y+=[1];
+						else: 
+							Y+=[0];
+				print entry.split(',')[0]
+			print len(X);
 svm.fit(X,Y);
 # rf.fit(X,Y);
 # mlp.fit(X,Y);
@@ -75,7 +70,7 @@ svm.fit(X,Y);
 
 
 # Dump the trained classifiers into into the dump folder
-with open('./dumps/svm2','wb') as d:
+with open('./dumps/svm','wb') as d:
 	pickle.dump(svm,d);
 
 # with open('./dumps/rf','wb') as d:
