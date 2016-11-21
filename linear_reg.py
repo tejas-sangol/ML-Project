@@ -9,12 +9,15 @@ l2=['user_7','user_9','user_10','user_11']
 l3=['user_12','user_13','user_14','user_15']
 l4=['user_16','user_17','user_18','user_19']
 
-reg_X={}
-reg_Y={}
+reg_X=[ [] for i in range(20)];
+reg_Y=[ [] for i in range(20)];
 
 img_height=240
 img_width=320
 img_size=80
+
+def position(string):
+    return int(string.split('_')[1]);
 
 def crop_image(arr,x1,y1,x2,y2):
     return arr[y1:y2,x1:x2];
@@ -31,8 +34,10 @@ def get_images(l):
     # i=l
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
-        reg_X[i]=[]
-        reg_Y[i]=[]
+        pos = position(i);
+        print pos
+        reg_X[pos]=[]
+        reg_Y[pos]=[]
         for j in bounding_boxes:
             c=0
             im,x1,y1,x2,y2=j.split(',')
@@ -40,20 +45,20 @@ def get_images(l):
             img=io.imread('./dataset/'+im)
             img=color.rgb2grey(img)
             size=x2-x1  #Assuming bounding box is a square
-            for y in xrange(0,img_height-size,100):
-                for x in xrange(0,img_width-size,100):
+            for y in xrange(0,img_height-size,80):
+                for x in xrange(0,img_width-size,80):
                     p=IOU([x,y,size],[x1,y1,size])
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
                     cr_img=transform.resize(cr_img,(img_height,img_width))
-                    # feat=feature.hog(cr_img)    	            
-                    reg_X[i].append(feature.hog(cr_img))
-                    reg_Y[i].append(p)
+                    # feat=feature.hog(cr_img)
+                    reg_X[pos].append(feature.hog(cr_img))
+                    reg_Y[pos].append(p)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
                     c+=1
             print im,c
 
-lreg = linear_model.LinearRegression(n_jobs=-1)		        #Untrained SVM Classifier
+lreg = linear_model.LinearRegression(n_jobs=-1)
 
 
 # def train(l):
@@ -80,12 +85,12 @@ lreg = linear_model.LinearRegression(n_jobs=-1)		        #Untrained SVM Classifi
 # l=["user_3","user_4"]
 # l=l1
 get_images(["user_3","user_4"])
-print len(reg_X["user_3"])
-print len(reg_Y["user_3"])
-print len(reg_X["user_4"])
-print len(reg_Y["user_4"])
-lreg.fit(reg_X["user_3"],reg_Y["user_3"])
-print lreg.score(reg_X["user_4"],reg_Y["user_4"])
+print len(reg_X[position("user_3")])
+print len(reg_Y[position("user_3")])
+print len(reg_X[position("user_4")])
+print len(reg_Y[position("user_4")])
+lreg.fit(reg_X[position("user_3")],reg_Y[position("user_3")])
+print lreg.score(reg_X[position("user_4")],reg_Y[position("user_4")])
 # p=Pool(4)
 # p.map(get_images,l)
 
@@ -99,20 +104,20 @@ print lreg.score(reg_X["user_4"],reg_Y["user_4"])
 # s1=test(['user_6'])
 # print s1
 
-# train(l2+l3+l4)
-# s1=test(l1)
-# print s1
+train(l2+l3+l4)
+s1=test(l1)
+print s1
 
-# train(l1+l3+l4)
-# s2=test(l2)
-# print s2
+train(l1+l3+l4)
+s2=test(l2)
+print s2
 
-# train(l1+l2+l4)
-# s3=test(l3)
-# print s3
+train(l1+l2+l4)
+s3=test(l3)
+print s3
 
-# train(l1+l2+l3)
-# s4=test(l4)
-# print s4
+train(l1+l2+l3)
+s4=test(l4)
+print s4
 
-# print float(s1+s2+s3+s4)/4.0
+print float(s1+s2+s3+s4)/4.0
