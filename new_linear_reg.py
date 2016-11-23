@@ -5,101 +5,115 @@ from skimage import io,transform,feature,color,data
 from multiprocessing import Pool,Process,Lock
 import numpy as np
 import math
-import sys
-import pickle
-import time
 
 l1=['user_3','user_4','user_5','user_6']
 l2=['user_7','user_9','user_10','user_11']
 l3=['user_12','user_13','user_14','user_15']
 l4=['user_16','user_17','user_18','user_19']
 
+bb_sizes={}
 
 lock=Lock()
 
-img_height=240
-img_width=320
+img_height=240.0
+img_width=320.0
 # img_size=80
-new_img_height=80
-new_img_width=80
-step=10
+# new_img_height=48
+# new_img_width=64
+# step=40
 
 def crop_image(arr,x1,y1,x2,y2):
     return arr[y1:y2,x1:x2];
-
-def IOU(predicted,actual):
-    cord1 = [max(actual[0],predicted[0]),max(actual[1],predicted[1])]
-    cord2 = [min(actual[0]+actual[2],predicted[0]+predicted[2]),min(actual[1]+actual[2],predicted[1]+predicted[2])]
-    intersectionArea = (cord2[0]-cord1[0])*(cord2[1]-cord1[1])
-    unionArea = actual[2]*actual[2] + predicted[2]*predicted[2] - intersectionArea
-    return abs(float(intersectionArea)/unionArea)
 
 def get_index(s):
     return int(s.split('_')[1])
 
 def get_images(l,new_img_width,new_img_height,step):
-# def get_images(l):
     # lock.acquire()
     for i in l:
-        # i=l
+    # i=l
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
         # reg_X[i]=[]
         # reg_Y[i]=[]
         for j in bounding_boxes:
-            c=0
             im,x1,y1,x2,y2=j.split(',')
             x1=int(x1);y1=int(y1);x2=int(x2);y2=int(y2)
-            img=io.imread('./dataset/'+im)
-            img=color.rgb2grey(img)
-            # size=x2-x1  #Assuming bounding box is a square
-            size=170  #Assuming largest bounding box possible
-            for y in xrange(0,img_height-size,step):
-                for x in xrange(0,img_width-size,step):
-                    p=IOU([x,y,size],[x1,y1,size])
-                    cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
-                    cr_img=transform.resize(cr_img,(new_img_height,new_img_width))
-                    # feat=feature.hog(cr_img)  
-                    # print cr_img.shape, feature.hog(cr_img)               
-                    # reg_X[get_index(i)].append(feature.hog(cr_img))
-                    reg_X[get_index(i)].append(feature.hog(cr_img,cells_per_block=(2,2)))
-                    reg_Y[get_index(i)].append(p)
+            size=x2-x1  #Assuming bounding box is a square
+
+            # img=io.imread('./dataset/'+im)
+            # img=color.rgb2grey(img)
+            # # img=transform.resize(img,(new_img_height,new_img_width))
+
+            # reg_X[get_index(i)].append(feature.hog(img))
+            #         # reg_X[get_index(i)].append(feature.hog(cr_img,cells_per_block=(2,2)))
+            # p1=float(x1)/img_width;
+            # q1=float(y1)/img_height;
+            # p2=float(x2)/img_width;
+            # q2=float(y2)/img_height;
+
+            # reg_Y[get_index(i)].append([p1,q1,p2,q2])
+
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+".jpg",cr_img)
                     # io.imsave('./sample/neg/'+i+'/'+str(c)+"_"+str(p)+".jpg",cr_img)
-                    c+=1
-            print im,c
+                    
+            # print im,size
+            if(bb_sizes.has_key(size)):
+                bb_sizes[size]+=1
+            else:
+                bb_sizes[size]=1
     # lock.release()
 
+def display():
+    sum=0
+    for i in sorted(bb_sizes.keys()):
+        print i,bb_sizes[i]
+        sum+=bb_sizes[i]
+    print sum
 # lreg = linear_model.Ridge(alpha=0.5)             
-# lreg = linear_model.BayesianRidge()            
+lreg1 = linear_model.BayesianRidge()            
+lreg2 = linear_model.BayesianRidge()            
+lreg3 = linear_model.BayesianRidge()            
+lreg4 = linear_model.BayesianRidge()            
 # lreg = linear_model.LinearRegression(n_jobs=-1)   
-lreg=MLPRegressor()           
+# lreg=MLPRegressor()           
 
 
 def train(l):
     X=[]
-    Y=[]
+    Y1=[]
+    Y2=[]
+    Y3=[]
+    Y4=[]
     for i in l:
         for j in xrange(len(reg_X[(get_index(i))])):
             X.append(reg_X[get_index(i)][j])
-            Y.append(reg_Y[get_index(i)][j])
-    lreg.fit(X,Y)
-
-    with open('./dumps/lreg','wb') as d:
-        pickle.dump(lreg,d);
+            # Y.append(reg_Y[get_index(i)][j])
+            Y1.append(reg_Y[get_index(i)][j][0])
+            Y2.append(reg_Y[get_index(i)][j][1])
+            Y3.append(reg_Y[get_index(i)][j][2])
+            Y4.append(reg_Y[get_index(i)][j][3])
+    # lreg.fit(X,Y)
+    lreg1.fit(X,Y1)
+    lreg2.fit(X,Y2)
+    lreg3.fit(X,Y3)
+    lreg4.fit(X,Y4)
 
 
 def test(l):
     X=[]
-    Y=[]
-    # with open('./dumps/lreg','rb') as f:
-    #     lreg = pickle.load(f);
-
+    Y1=[]
+    Y2=[]
+    Y3=[]
+    Y4=[]
     for i in l:
         for j in xrange(len(reg_X[(get_index(i))])):
             X.append(reg_X[get_index(i)][j])
-            Y.append(reg_Y[get_index(i)][j])
-    return lreg.score(X,Y)
+            Y1.append(reg_Y[get_index(i)][j][0])
+            Y2.append(reg_Y[get_index(i)][j][1])
+            Y3.append(reg_Y[get_index(i)][j][2])
+            Y4.append(reg_Y[get_index(i)][j][3])
+    return [lreg1.score(X,Y1),lreg2.score(X,Y2),lreg3.score(X,Y3),lreg4.score(X,Y4)]
 
 
 
@@ -108,18 +122,16 @@ def search(new_img_width,new_img_height,step):
     get_images(l,new_img_width,new_img_height,step)
     # train(['user_3','user_4','user_5','user_7','user_9','user_10','user_12','user_13','user_14','user_16','user_17','user_18'])
     # print new_img_width,new_img_height,step,test(['user_6','user_11','user_15','user_19'])
-    train(['user_3','user_4','user_5'])
-    print new_img_width,new_img_height,step,test(['user_6'])
-    sys.stdout.flush()
+    # train(['user_3','user_4','user_5'])
+    # print new_img_width,new_img_height,step,test(['user_6'])
 
 
 # get_images(l1+l2+l3+l4)
 l=l1+l2+l3+l4
-# l=l4
 # l=l1
 
 # for i in xrange(8,30):
-#     for j in xrange(80,20,-5):
+#     for j in xrange(20,80):
 #         reg_X=[[] for _ in xrange(20)]
 #         reg_Y=[[] for _ in xrange(20)]
 #         search(i*4,i*3,j)
@@ -127,23 +139,8 @@ l=l1+l2+l3+l4
 
 reg_X=[[] for _ in xrange(20)]
 reg_Y=[[] for _ in xrange(20)]
-# search(30,40,20)
-get_images(l,100,100,10)
-train(l)
-# print test(l)
-
-# p=Pool(12)
-# get_images(l,80,80,10)
-
-# map(get_images,l)
-# p.close()
-# p.join()
-# time.sleep(20)
-# train(l)
-
-# train(['user_3','user_4','user_5'])
-# print test(['user_6'])
-
+search(img_width,img_height,10)
+display()
 
 # p1=Process(target=get_images,args=(lock,['user_3'],));
 # p1.start();
@@ -163,6 +160,11 @@ train(l)
 # get_images(l)
 # train(['user_3','user_4','user_5','user_7','user_9','user_10','user_12','user_13','user_14','user_16','user_17','user_18'])
 # print test(['user_6','user_11','user_15','user_19'])
+
+
+# get_images(l)
+# train(['user_3','user_4','user_5'])
+# print test(['user_6'])
 
 
 # get_images(l1+l2)
