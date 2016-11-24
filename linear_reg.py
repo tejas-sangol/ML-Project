@@ -2,7 +2,7 @@ from sklearn import linear_model
 from sklearn.neural_network import MLPRegressor
 import skimage as ski
 from skimage import io,transform,feature,color,data
-from multiprocessing import Pool,Process,Lock
+from multiprocessing import Pool,Process,Lock,Manager
 import numpy as np
 import math
 import sys
@@ -14,25 +14,46 @@ l2=['user_7','user_9','user_10','user_11']
 l3=['user_12','user_13','user_14','user_15']
 l4=['user_16','user_17','user_18','user_19']
 
+manager=Manager()
 
 lock=Lock()
 
 img_height=240
 img_width=320
 # img_size=80
-new_img_height=80
-new_img_width=80
-step=10
+
 
 def crop_image(arr,x1,y1,x2,y2):
     return arr[y1:y2,x1:x2];
 
-def IOU(predicted,actual):
-    cord1 = [max(actual[0],predicted[0]),max(actual[1],predicted[1])]
-    cord2 = [min(actual[0]+actual[2],predicted[0]+predicted[2]),min(actual[1]+actual[2],predicted[1]+predicted[2])]
-    intersectionArea = (cord2[0]-cord1[0])*(cord2[1]-cord1[1])
-    unionArea = actual[2]*actual[2] + predicted[2]*predicted[2] - intersectionArea
-    return abs(float(intersectionArea)/unionArea)
+def IOU( box1, box2):
+
+
+        xmin_1, ymin_1, xmax_1, ymax_1 = map(int, box1)
+        xmin_2, ymin_2, xmax_2, ymax_2 = map(int, box2)
+
+
+        dx = min(xmax_1, xmax_2) - max(xmin_1, xmin_2)
+        dy = min(ymax_1, ymax_2) - max(ymin_1, ymin_2)
+
+        if (dx >= 0) and (dy >= 0):
+            intersection = dx * dy
+
+        else:
+            intersection = 0
+
+        area_1 = (xmax_1 - xmin_1) * (ymax_1 - ymin_1)
+        area_2 = (xmax_2 - xmin_2) * (ymax_2 - ymin_2)
+
+        union = area_1 + area_2 - intersection
+
+        try:
+            iou_score = float(intersection) / union
+        except:
+            iou_score = 0.0
+
+        return iou_score
+
 
 def get_index(s):
     return int(s.split('_')[1])
@@ -41,7 +62,7 @@ def get_images(l,new_img_width,new_img_height,step):
 # def get_images(l):
     # lock.acquire()
     for i in l:
-        # i=l
+    # i=l
         f=open('./dataset/'+i+'/'+i+'_loc.csv')
         bounding_boxes=f.read().split('\n')[1:-1]
         # reg_X[i]=[]
@@ -53,10 +74,10 @@ def get_images(l,new_img_width,new_img_height,step):
             img=io.imread('./dataset/'+im)
             img=color.rgb2grey(img)
             # size=x2-x1  #Assuming bounding box is a square
-            size=170  #Assuming largest bounding box possible
+            size=140  #Assuming largest bounding box possible
             for y in xrange(0,img_height-size,step):
                 for x in xrange(0,img_width-size,step):
-                    p=IOU([x,y,size],[x1,y1,size])
+                    p=IOU([x,y,x+size,y+size],[x1,y1,x2,y2])
                     cr_img=crop_image(img,int(x),int(y),int(x+size),int(y+size))
                     cr_img=transform.resize(cr_img,(new_img_height,new_img_width))
                     # feat=feature.hog(cr_img)  
@@ -85,7 +106,7 @@ def train(l):
             Y.append(reg_Y[get_index(i)][j])
     lreg.fit(X,Y)
 
-    with open('./dumps/lreg','wb') as d:
+    with open('./dumps/resize_140_100_100_20_lreg','wb') as d:
         pickle.dump(lreg,d);
 
 
@@ -124,12 +145,28 @@ l=l1+l2+l3+l4
 #         reg_Y=[[] for _ in xrange(20)]
 #         search(i*4,i*3,j)
 
+# new_img_height=100
+# new_img_width=100
+# step=40
 
 reg_X=[[] for _ in xrange(20)]
+# reg_X=manager.list()
+
 reg_Y=[[] for _ in xrange(20)]
+# reg_Y=manager.list()
+# for _ in xrange(20):
+    # reg_Y.append([])
+    # reg_X.append([])
 # search(30,40,20)
-get_images(l,100,100,10)
+get_images(l,100,100,20)
 train(l)
+# p=Pool()
+# p.map(get_images,['user_3','user_4'])
+# p.close()
+# p.join()
+# get_images(l)
+# time.sleep(120)
+# train(['user_3','user_4'])
 # print test(l)
 
 # p=Pool(12)
